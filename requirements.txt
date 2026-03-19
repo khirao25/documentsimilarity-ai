@@ -1,3 +1,6 @@
 flask
+flask-cors
 scikit-learn
 gunicorn
+PyPDF2
+python-docx
