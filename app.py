@@ -84,8 +84,8 @@ def google_login():
 
     data = {
         "code": code,
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
+        "client_id": 93534666717-gkbvqjl9jvcvcau9d1s7g7o15rc1ori6.apps.googleusercontent.com,
+        "client_secret": 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,
         "redirect_uri": REDIRECT_URI,
         "grant_type": "authorization_code"
     }
