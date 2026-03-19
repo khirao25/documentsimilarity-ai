@@ -1,75 +1,54 @@
+from flask import Flask, request, jsonify
 from flask_cors import CORS
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import PyPDF2
+import docx
 
 app = Flask(__name__)
 CORS(app)
 
-def init_db():
-    conn = sqlite3.connect("users.db")
-    c = conn.cursor()
-    c.execute("CREATE TABLE IF NOT EXISTS users (email TEXT, password TEXT)")
-    c.execute("CREATE TABLE IF NOT EXISTS history (email TEXT, score TEXT)")
-    conn.commit()
-    conn.close()
+def read_file(file):
+    try:
+        if file.filename.endswith(".txt"):
+            return file.read().decode("utf-8", errors="ignore")
 
-init_db()
+        elif file.filename.endswith(".pdf"):
+            reader = PyPDF2.PdfReader(file)
+            text = ""
+            for page in reader.pages:
+                text += page.extract_text() or ""
+            return text
 
-@app.route('/signup', methods=['POST'])
-def signup():
-    email = request.form['email']
-    password = request.form['password']
+        elif file.filename.endswith(".docx"):
+            doc = docx.Document(file)
+            return "\n".join([p.text for p in doc.paragraphs])
 
-    conn = sqlite3.connect("users.db")
-    c = conn.cursor()
-    c.execute("INSERT INTO users VALUES (?,?)", (email, password))
-    conn.commit()
-    conn.close()
+    except:
+        return ""
 
-    return jsonify({"message": "User created"})
+    return ""
 
-@app.route('/login', methods=['POST'])
-def login():
-    email = request.form['email']
-    password = request.form['password']
+@app.route('/compare', methods=['POST'])
+def compare():
+    try:
+        file1 = request.files['file1']
+        file2 = request.files['file2']
 
-    conn = sqlite3.connect("users.db")
-    c = conn.cursor()
-    c.execute("SELECT * FROM users WHERE email=? AND password=?", (email, password))
-    user = c.fetchone()
-    conn.close()
+        text1 = read_file(file1)
+        text2 = read_file(file2)
 
-    if user:
-        return jsonify({"status": "success"})
-    else:
-        return jsonify({"status": "fail"})
+        vectorizer = TfidfVectorizer().fit_transform([text1, text2])
+        similarity = cosine_similarity(vectorizer[0:1], vectorizer[1:2])[0][0]
 
-@app.route('/save', methods=['POST'])
-def save():
-    email = request.form['email']
-    score = request.form['score']
+        return jsonify({'similarity': round(similarity * 100, 2)})
 
-    conn = sqlite3.connect("users.db")
-    c = conn.cursor()
-    c.execute("INSERT INTO history VALUES (?,?)", (email, score))
-    conn.commit()
-    conn.close()
-
-    return jsonify({"message": "Saved"})
-
-@app.route('/history', methods=['POST'])
-def history():
-    email = request.form['email']
-
-    conn = sqlite3.connect("users.db")
-    c = conn.cursor()
-    c.execute("SELECT score FROM history WHERE email=?", (email,))
-    data = c.fetchall()
-    conn.close()
-
-    return jsonify(data)
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
 @app.route('/')
 def home():
-    return "Backend Running"
+    return "AI Backend Running"
 
 if __name__ == '__main__':
     app.run()
